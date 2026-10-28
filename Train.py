@@ -6,7 +6,7 @@ from Bio import SeqIO
 import numpy as np
 import torchmetrics
 import torch.optim as optim
-from model import convATTnet
+import model as models
 from logger import Logger
 import time
 from sklearn.model_selection import KFold
@@ -65,11 +65,11 @@ def validation(model, x_valid, y_valid_label, criterion, args):
     valid_loader = DataLoader(
         dataset=valid_ids, batch_size=args.batch_size, shuffle=True, drop_last=True)
     model.eval()
-    accuracy = torchmetrics.Accuracy().to(device)
-    recall = torchmetrics.Recall(average='micro').to(device)
-    precision = torchmetrics.Precision().to(device)
-    auroc = torchmetrics.AUROC(num_classes=None, average='micro').to(device)
-    f1 = torchmetrics.F1Score().to(device)
+    accuracy = torchmetrics.Accuracy(task='binary').to(device)
+    recall = torchmetrics.Recall(task='binary').to(device)
+    precision = torchmetrics.Precision(task='binary').to(device)
+    auroc = torchmetrics.AUROC(task='binary').to(device)
+    f1 = torchmetrics.F1Score(task='binary').to(device)
 
     finaloutputs = torch.tensor([]).to(device)
     finallabels = torch.tensor([], dtype=torch.long).to(device)
@@ -114,7 +114,7 @@ def train(args):
         x_train, x_valid = x[train_index], x[valid_index]
         y_train_label, y_valid_label = y[train_index], y[valid_index]
         k = k+1
-        model = convATTnet()
+        model = getattr(models, args.model)()
         model.to(device)
         optimizer = optim.Adam(
             model.parameters(), lr=args.lr, weight_decay=0.0, betas=(0.9, 0.999))
@@ -123,9 +123,9 @@ def train(args):
         train_loader = DataLoader(
             dataset=train_ids, batch_size=args.batch_size, shuffle=True, drop_last=True)
         
-        model.train()
         best_f1 = 0
         for epoch in range(args.epochs):
+            model.train()
             train_loss = 0.0
             for i, data in enumerate(train_loader, 0):
                 inputs, labels = data
@@ -145,11 +145,11 @@ def train(args):
                 model, x_valid, y_valid_label, criterion, args)
             # Generate validation results for each epoch.
             log('%d\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f' % (epoch, valid_loss, accuracy_value, recall_value,
-                precision_value, auroc_value, f1_value), './model.'+str(k)+'.fold.everyepoch.valid.txt')
+                precision_value, auroc_value, f1_value), './'+args.model+'.'+str(k)+'.fold.everyepoch.valid.txt')
             # Save the model with the largest F1 value.
             if f1_value > best_f1:
                 best_f1 = f1_value
-                torch.save(model.state_dict(), './model.'+str(k)+'.pt')
+                torch.save(model.state_dict(), './'+args.model+'.'+str(k)+'.pt')
                 valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value = validation(
                     model, x_valid, y_valid_label, criterion, args)
         # Generate validation results for each fold
@@ -161,6 +161,8 @@ def train(args):
         precision_sum += precision_value.item()
         auroc_sum += auroc_value.item()
         f1_sum += f1_value.item()
+        if k == 1:
+            break
     log('valid_loss: %.3f accuracy_value: %.6f recall_value: %.6f precision_value: %.6f auroc_value: %.6f f1_value: %.6f' % (
         valid_loss_sum/10, accuracy_sum/10, recall_sum/10, precision_sum/10, auroc_sum/10, f1_sum/10), 'valid.log')
     now = time.asctime(time.localtime(time.time()))

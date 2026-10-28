@@ -16,8 +16,8 @@ def main():
                            metavar='N')
     argparser.add_argument('--mode', default='train', type=str,
                            choices=['train', 'test'])
-    # argparser.add_argument('--model', default='convATTnet', type=str,
-    #                        choices=['convATTnet', 'conv1d', 'ATTnet'])
+    argparser.add_argument('--model', default='convATTnet', type=str,
+                           choices=['convATTnet', 'convNet', 'ATTnet'])
 
     args = argparser.parse_args()
     if args.mode == 'train':

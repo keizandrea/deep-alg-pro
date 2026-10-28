@@ -45,7 +45,7 @@ class selfAttention(nn.Module): # multi-head self attention layer, transformers
         return context
 
 
-class convATTnet(nn.Module):
+class convATTnet(nn.Module): # both mhsa and cnn
     def __init__(self):
         super(convATTnet, self).__init__()
         self.conv1 = nn.Conv1d(21, 64, 16, stride=1)
@@ -69,6 +69,47 @@ class convATTnet(nn.Module):
         x = self.selfattention.forward(x)
         x = x.view(-1, 985*24)
         # fully connected layer
+        x = self.fc1(x)
+        x = torch.sigmoid(x)
+        return(x)
+
+class convNet(nn.Module): # without MHSA
+    def __init__(self):
+        super(convNet, self).__init__()
+        self.conv1 = nn.Conv1d(21, 64, 16, stride=1)
+        self.maxpool = nn.MaxPool1d(5, stride = 5)
+        self.dropout = nn.Dropout(p=0.1)
+        self.fc1 = nn.Linear(in_features = 985*12, out_features=1)
+
+    def forward(self, x):
+        x = F.one_hot(x, num_classes=21)
+        x = x.float()
+        x = x.permute(0,2,1)
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = x.permute(0,2,1)
+        x = self.maxpool(x)
+        x = self.dropout(x)
+        # no attention, langsung ke fully connected layer
+        x = x.reshape(-1, 985*12)
+        x = self.fc1(x)
+        x = torch.sigmoid(x)
+        return(x)
+
+class ATTnet(nn.Module): # without CNN
+    def __init__(self):
+        super(ATTnet, self).__init__()
+        self.selfattention = selfAttention(8, 21, 24)
+        self.dropout = nn.Dropout(p=0.1)
+        self.fc1 = nn.Linear(in_features=1000*24, out_features=1)
+
+    def forward(self, x):
+        x = F.one_hot(x, num_classes=21)
+        x = x.float()
+        # no conv / maxpool 
+        x = self.dropout(x)
+        x = self.selfattention.forward(x)
+        x = x.view(-1, 1000*24)
         x = self.fc1(x)
         x = torch.sigmoid(x)
         return(x)
