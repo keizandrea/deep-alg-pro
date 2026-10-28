@@ -5,9 +5,9 @@ import math
 
 
 
-class selfAttention(nn.Module):
+class selfAttention(nn.Module): # multi-head self attention layer, transformers
     def __init__(self, num_attention_heads, input_size, hidden_size):
-        super(selfAttention, self).__init__()
+        super(selfAttention, self).__init__() 
 
         self.num_attention_heads = num_attention_heads
         self.attention_head_size = int(hidden_size / num_attention_heads)
