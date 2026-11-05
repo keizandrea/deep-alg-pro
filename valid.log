@@ -1,0 +1,4 @@
+[k: 1] valid_loss: 1.354 accuracy_value: 0.562500 recall_value: 0.600000 precision_value: 0.375000 auroc_value: 0.545455 f1_value: 0.461538
+valid_loss: 0.135 accuracy_value: 0.056250 recall_value: 0.060000 precision_value: 0.037500 auroc_value: 0.054545 f1_value: 0.046154
+[k: 1] valid_loss: 1.437 accuracy_value: 0.437500 recall_value: 0.857143 precision_value: 0.428571 auroc_value: 0.603175 f1_value: 0.571429
+valid_loss: 0.144 accuracy_value: 0.043750 recall_value: 0.085714 precision_value: 0.042857 auroc_value: 0.060317 f1_value: 0.057143

@@ -18,6 +18,13 @@ def main():
                            choices=['train', 'test'])
     argparser.add_argument('--model', default='convATTnet', type=str,
                            choices=['convATTnet', 'convNet', 'ATTnet'])
+    argparser.add_argument('--weights', default='./model.pt', type=str,
+                           help='checkpoint to load in test mode')
+    # adding an embedding argument
+    argparser.add_argument('--in-channels', default=21, type=int,
+                           help='embedding dimension (21 for one-hot)')
+    argparser.add_argument('--embeddings', default=None, type=str,
+                           help='directory of precomputed embeddings; omit for one-hot')
 
     args = argparser.parse_args()
     if args.mode == 'train':

@@ -46,16 +46,18 @@ class selfAttention(nn.Module): # multi-head self attention layer, transformers
 
 
 class convATTnet(nn.Module): # both mhsa and cnn
-    def __init__(self):
+    def __init__(self, in_channels=21, onehot=True):
         super(convATTnet, self).__init__()
-        self.conv1 = nn.Conv1d(21, 64, 16, stride=1)
+        self.conv1 = nn.Conv1d(in_channels, 64, 16, stride=1)
         self.maxpool = nn.MaxPool1d(5, stride=5)
         self.dropout = nn.Dropout(p=0.1)
         self.selfattention = selfAttention(8, 12, 24)
         self.fc1 = nn.Linear(in_features=985*24, out_features=1)
+        self.onehot = onehot
 
     def forward(self, x):
-        x = F.one_hot(x, num_classes=21)
+        if self.onehot:
+            x = F.one_hot(x, num_classes=21)
         x = x.float()
         x = x.permute(0, 2, 1)
         # convolutional layer

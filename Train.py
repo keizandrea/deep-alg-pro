@@ -114,7 +114,8 @@ def train(args):
         x_train, x_valid = x[train_index], x[valid_index]
         y_train_label, y_valid_label = y[train_index], y[valid_index]
         k = k+1
-        model = getattr(models, args.model)()
+        model = getattr(models, args.model)(in_channels=args.in_channels,
+                                            onehot=args.embeddings is None)
         model.to(device)
         optimizer = optim.Adam(
             model.parameters(), lr=args.lr, weight_decay=0.0, betas=(0.9, 0.999))
