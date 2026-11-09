@@ -115,7 +115,7 @@ def plot_mutagenesis(seq, wt_logit, delta, title, out_png):
 def main():
     p = argparse.ArgumentParser(description='Learning curves and in-silico mutagenesis for DeepAlgPro')
     p.add_argument('--valid', default='model.1.fold.everyepoch.valid.txt')
-    p.add_argument('--model', default='model.1.pt')
+    p.add_argument('--model', default='weights/onehot_base.retrained.pt')
     p.add_argument('--fasta', help='FASTA to take the protein from (default: built-in sequence)')
     p.add_argument('--id', help='record id inside --fasta (default: first record)')
     args = p.parse_args()

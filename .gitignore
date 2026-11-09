@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+emb/
+*.npy
+*.bak
+data/uniprotkb_*.fasta.gz
