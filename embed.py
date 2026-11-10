@@ -74,7 +74,7 @@ def load_plm(name, device):
     is_t5 = 't5' in name.lower()
     if is_t5:
         from transformers import T5EncoderModel, T5Tokenizer
-        tok = T5Tokenizer.from_pretrained(name, do_lower_class=False)
+        tok = T5Tokenizer.from_pretrained(name, do_lower_case=False)
         model = T5EncoderModel.from_pretrained(name)
     else:
         tok = AutoTokenizer.from_pretrained(name)
