@@ -156,6 +156,10 @@ def train(args):
             drop_last=True, num_workers=2)
         best_f1 = 0
         best_metrics = None
+        best_f1 = 0
+        best_metrics = None
+        stale = 0
+
         for epoch in range(args.epochs):
             model.train()
             train_loss = 0.0
@@ -183,6 +187,14 @@ def train(args):
                 best_f1 = f1_value
                 torch.save(model.state_dict(), f'weights/{tag}.{k}.pt')
                 best_metrics = (valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value)
+                stale = 0
+            else:
+                stale += 1                                       
+                if args.patience and stale >= args.patience:     
+                    log('[k: %d] early stop at epoch %d (no F1 gain in %d)' %
+                        (k, epoch, args.patience), 'train.log')  
+                    break                                        
+
         # Generate validation results for each fold
         if best_metrics is not None:
             valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value = best_metrics

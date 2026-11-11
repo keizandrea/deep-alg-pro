@@ -29,6 +29,9 @@ def main():
                            help='checkpoint/log name prefix; defaults to --model')
     argparser.add_argument('--folds', default=10, type=int,
                            help='stop after this many CV folds')
+    argparser.add_argument('--patience', default=0, type=int,
+                           help='stop a fold after N epochs with no F1 gain; 0 = never')
+
 
 
     args = argparser.parse_args()
