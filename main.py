@@ -25,6 +25,11 @@ def main():
                            help='embedding dimension (21 for one-hot)')
     argparser.add_argument('--embeddings', default=None, type=str,
                            help='directory of precomputed embeddings; omit for one-hot')
+    argparser.add_argument('--tag', default=None, type=str,
+                           help='checkpoint/log name prefix; defaults to --model')
+    argparser.add_argument('--folds', default=10, type=int,
+                           help='stop after this many CV folds')
+
 
     args = argparser.parse_args()
     if args.mode == 'train':

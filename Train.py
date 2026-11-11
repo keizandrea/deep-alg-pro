@@ -128,6 +128,9 @@ def validation(model, valid_ds, criterion, args):
 
 
 def train(args):
+    tag = args.tag or args.model
+    os.makedirs('weights', exist_ok=True)
+
     if args.embeddings:
         ids, labels = read_ids(args.inputs)
         full = EmbDataset(ids, labels, args.embeddings, 1000, args.in_channels)
@@ -174,16 +177,16 @@ def train(args):
                 model, valid_ds=valid_ds, criterion=criterion, args=args)
             # Generate validation results for each epoch.
             log('%d\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f' % (epoch, valid_loss, accuracy_value, recall_value,
-                precision_value, auroc_value, f1_value), './'+args.model+'.'+str(k)+'.fold.everyepoch.valid.txt')
+                precision_value, auroc_value, f1_value), f'./{tag}.{k}.fold.everyepoch.valid.txt')
             # Save the model with the largest F1 value.
             if f1_value > best_f1:
                 best_f1 = f1_value
-                torch.save(model.state_dict(), './'+args.model+'.'+str(k)+'.pt')
+                torch.save(model.state_dict(), f'weights/{tag}.{k}.pt')
                 best_metrics = (valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value)
         # Generate validation results for each fold
         if best_metrics is not None:
             valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value = best_metrics
-            
+
         log('[k: %d] valid_loss: %.3f accuracy_value: %.6f recall_value: %.6f precision_value: %.6f auroc_value: %.6f f1_value: %.6f' % (
             k, valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value), 'valid.log')
         valid_loss_sum += valid_loss
@@ -192,7 +195,7 @@ def train(args):
         precision_sum += precision_value.item()
         auroc_sum += auroc_value.item()
         f1_sum += f1_value.item()
-        if k == 1:
+        if k >= args.folds:
             break
     log('valid_loss: %.3f accuracy_value: %.6f recall_value: %.6f precision_value: %.6f auroc_value: %.6f f1_value: %.6f' % (
         valid_loss_sum/k, accuracy_sum/k, recall_sum/k, precision_sum/k, auroc_sum/k, f1_sum/k), 'valid.log')
