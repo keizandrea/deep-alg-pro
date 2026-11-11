@@ -6,6 +6,7 @@ from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
 from Bio import SeqIO
 import numpy as np
+from Train import EmbDataset, read_ids
 
 if torch.cuda.is_available():
     # Tell PyTorch to use the GPU.
@@ -52,11 +53,14 @@ def format(predict_fasta):
 
 
 def test(args):
-    x = torch.tensor(format(args.inputs)[0], dtype=torch.long)
-    y = torch.tensor(format(args.inputs)[1], dtype=torch.float)
-    test_ids = TensorDataset(x, y)
-    test_loader = DataLoader(
-        dataset=test_ids, batch_size=args.batch_size, shuffle=True)
+    if args.embeddings:
+        ids, labels = read_ids(args.inputs)
+        ds = EmbDataset(ids, labels, args.embeddings, 1000, args.in_channels)
+    else:
+        xa, ya = format(args.inputs)
+        ds = TensorDataset(torch.tensor(xa, dtype=torch.long),
+                           torch.tensor(ya, dtype=torch.float))
+    test_loader = DataLoader(dataset=ds, batch_size=args.batch_size, shuffle=True)
     model = getattr(models, args.model)(in_channels=args.in_channels,
                                         onehot=args.embeddings is None)
     model.to(device)
