@@ -2,13 +2,14 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
+from torch.utils.data import Subset
 from Bio import SeqIO
 import numpy as np
 import torchmetrics
 import torch.optim as optim
 import model as models
 from logger import Logger
-import time
+import time, os
 from sklearn.model_selection import KFold
 
 logger = Logger()
@@ -58,12 +59,34 @@ def format(predict_fasta):
     inputarray = np.array(formatfasta)
     labelarray = np.array(recordlabel)
     return(inputarray, labelarray)
+class EmbDataset(torch.utils.data.Dataset):
+    def __init__(self, ids, labels, emb_dir, maxlen=1000, dim=1024):
+        self.ids, self.labels = ids, labels
+        self.emb_dir, self.maxlen, self.dim = emb_dir, maxlen, dim
+
+    def __len__(self):
+        return len(self.ids)
+
+    def __getitem__(self, i):
+        a = np.load(os.path.join(self.emb_dir, self.ids[i] + '.npy'))   # (L, dim) fp16
+        L = min(a.shape[0], self.maxlen)
+        x = np.zeros((self.maxlen, self.dim), dtype=np.float32)
+        x[self.maxlen - L:] = a[:L]        # LEFT pad — must match format()
+        return torch.from_numpy(x), torch.tensor(self.labels[i], dtype=torch.float)
 
 
-def validation(model, x_valid, y_valid_label, criterion, args):
-    valid_ids = TensorDataset(x_valid, y_valid_label)
+def read_ids(fasta):
+    ids, labels = [], []
+    for rec in SeqIO.parse(fasta, 'fasta'):
+        ids.append(rec.id)
+        labels.append(1.0 if rec.id.startswith('allergen') else 0.0)
+    return ids, labels
+
+
+def validation(model, valid_ds, criterion, args):
     valid_loader = DataLoader(
-        dataset=valid_ids, batch_size=args.batch_size, shuffle=True, drop_last=True)
+        dataset=valid_ds, batch_size=args.batch_size, shuffle=True, drop_last=True)
+
     model.eval()
     accuracy = torchmetrics.Accuracy(task='binary').to(device)
     recall = torchmetrics.Recall(task='binary').to(device)
@@ -105,14 +128,19 @@ def validation(model, x_valid, y_valid_label, criterion, args):
 
 
 def train(args):
-    x = torch.tensor(format(args.inputs)[0], dtype=torch.long)
-    y = torch.tensor(format(args.inputs)[1], dtype=torch.float)
+    if args.embeddings:
+        ids, labels = read_ids(args.inputs)
+        full = EmbDataset(ids, labels, args.embeddings, 1000, args.in_channels)
+    else:
+        xa, ya = format(args.inputs)
+        full = TensorDataset(torch.tensor(xa, dtype=torch.long),
+                             torch.tensor(ya, dtype=torch.float))
     valid_loss_sum, accuracy_sum, recall_sum, precision_sum, auroc_sum, f1_sum = 0, 0, 0, 0, 0, 0
     k = 0
     skf = KFold(n_splits=10, shuffle=False)
-    for train_index, valid_index in skf.split(x):
-        x_train, x_valid = x[train_index], x[valid_index]
-        y_train_label, y_valid_label = y[train_index], y[valid_index]
+    for train_index, valid_index in skf.split(np.arrange(len(full))):
+        train_ds = Subset(full, train_index)
+        valid_ds = Subset(full, valid_index)
         k = k+1
         model = getattr(models, args.model)(in_channels=args.in_channels,
                                             onehot=args.embeddings is None)
@@ -120,11 +148,11 @@ def train(args):
         optimizer = optim.Adam(
             model.parameters(), lr=args.lr, weight_decay=0.0, betas=(0.9, 0.999))
         criterion = nn.BCELoss().to(device)
-        train_ids = TensorDataset(x_train, y_train_label)
         train_loader = DataLoader(
-            dataset=train_ids, batch_size=args.batch_size, shuffle=True, drop_last=True)
-        
+            dataset=train_ds, batch_size=args.batch_size, shuffle=True,
+            drop_last=True, num_workers=2)
         best_f1 = 0
+        best_metrics = None
         for epoch in range(args.epochs):
             model.train()
             train_loss = 0.0
@@ -143,7 +171,7 @@ def train(args):
                     (k, i + 1, loss.item()), 'train.log')
                 now = time.asctime(time.localtime(time.time()))
             valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value = validation(
-                model, x_valid, y_valid_label, criterion, args)
+                model, valid_ds=valid_ds, criterion=criterion, args=args)
             # Generate validation results for each epoch.
             log('%d\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f' % (epoch, valid_loss, accuracy_value, recall_value,
                 precision_value, auroc_value, f1_value), './'+args.model+'.'+str(k)+'.fold.everyepoch.valid.txt')
@@ -151,9 +179,11 @@ def train(args):
             if f1_value > best_f1:
                 best_f1 = f1_value
                 torch.save(model.state_dict(), './'+args.model+'.'+str(k)+'.pt')
-                valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value = validation(
-                    model, x_valid, y_valid_label, criterion, args)
+                best_metrics = (valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value)
         # Generate validation results for each fold
+        if best_metrics is not None:
+            valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value = best_metrics
+            
         log('[k: %d] valid_loss: %.3f accuracy_value: %.6f recall_value: %.6f precision_value: %.6f auroc_value: %.6f f1_value: %.6f' % (
             k, valid_loss, accuracy_value, recall_value, precision_value, auroc_value, f1_value), 'valid.log')
         valid_loss_sum += valid_loss
@@ -165,6 +195,6 @@ def train(args):
         if k == 1:
             break
     log('valid_loss: %.3f accuracy_value: %.6f recall_value: %.6f precision_value: %.6f auroc_value: %.6f f1_value: %.6f' % (
-        valid_loss_sum/10, accuracy_sum/10, recall_sum/10, precision_sum/10, auroc_sum/10, f1_sum/10), 'valid.log')
+        valid_loss_sum/k, accuracy_sum/k, recall_sum/k, precision_sum/k, auroc_sum/k, f1_sum/k), 'valid.log')
     now = time.asctime(time.localtime(time.time()))
     log(str(now), 'train.log')
