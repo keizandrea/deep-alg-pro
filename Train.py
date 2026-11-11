@@ -138,7 +138,7 @@ def train(args):
     valid_loss_sum, accuracy_sum, recall_sum, precision_sum, auroc_sum, f1_sum = 0, 0, 0, 0, 0, 0
     k = 0
     skf = KFold(n_splits=10, shuffle=False)
-    for train_index, valid_index in skf.split(np.arrange(len(full))):
+    for train_index, valid_index in skf.split(np.arange(len(full))):
         train_ds = Subset(full, train_index)
         valid_ds = Subset(full, valid_index)
         k = k+1
