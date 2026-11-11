@@ -5,3 +5,5 @@ emb/
 *.npy
 *.bak
 data/uniprotkb_*.fasta.gz
+epitopes.fa
+data/allergenic_predict.txt
