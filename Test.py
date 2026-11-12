@@ -1,11 +1,12 @@
 import torch
 import torchmetrics
-from model import convATTnet
+import model as models
 from logger import Logger
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
 from Bio import SeqIO
 import numpy as np
+from Train import EmbDataset, read_ids
 
 if torch.cuda.is_available():
     # Tell PyTorch to use the GPU.
@@ -52,20 +53,24 @@ def format(predict_fasta):
 
 
 def test(args):
-    x = torch.tensor(format(args.inputs)[0], dtype=torch.long)
-    y = torch.tensor(format(args.inputs)[1], dtype=torch.float)
-    test_ids = TensorDataset(x, y)
-    test_loader = DataLoader(
-        dataset=test_ids, batch_size=args.batch_size, shuffle=True)
-    model = convATTnet()
+    if args.embeddings:
+        ids, labels = read_ids(args.inputs)
+        ds = EmbDataset(ids, labels, args.embeddings, 1000, args.in_channels)
+    else:
+        xa, ya = format(args.inputs)
+        ds = TensorDataset(torch.tensor(xa, dtype=torch.long),
+                           torch.tensor(ya, dtype=torch.float))
+    test_loader = DataLoader(dataset=ds, batch_size=args.batch_size, shuffle=True)
+    model = getattr(models, args.model)(in_channels=args.in_channels,
+                                        onehot=args.embeddings is None)
     model.to(device)
-    model.load_state_dict(torch.load('./model.pt', map_location=device), strict=True)
+    model.load_state_dict(torch.load(args.weights, map_location=device), strict=True)
     model.eval()
     accuracy = torchmetrics.Accuracy(task='binary').to(device)
-    recall = torchmetrics.Recall(average='micro').to(device)
-    precision = torchmetrics.Precision().to(device)
-    auroc = torchmetrics.AUROC(num_classes=None, average='micro').to(device)
-    f1 = torchmetrics.F1Score().to(device)
+    recall = torchmetrics.Recall(task='binary').to(device)
+    precision = torchmetrics.Precision(task='binary').to(device)
+    auroc = torchmetrics.AUROC(task='binary').to(device)
+    f1 = torchmetrics.F1Score(task='binary').to(device)
     finaloutputs = torch.tensor([]).to(device)
     finallabels = torch.tensor([], dtype=torch.long).to(device)
     with torch.no_grad():
@@ -93,5 +98,5 @@ def test(args):
         precision.reset()
         auroc.reset()
         f1.reset()
-        log('Test Result: F1: ' + str("%.5f" % f1_value.item()) + '\tAccurcay: ' + str("%.5f" % accuracy_value.item()) + '\tPrecision: ' + str("%.5f" %
+        log(args.model + ' (' + args.weights + ')  F1: ' + str("%.5f" % f1_value.item()) + '\tAccuracy: ' + str("%.5f" % accuracy_value.item()) + '\tPrecision: ' + str("%.5f" %
             precision_value.item()) + '\tRecall: ' + str("%.5f" % recall_value.item())+'\tAUROC: ' + str("%.5f" % auroc_value.item()), './test.log')
