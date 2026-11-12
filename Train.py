@@ -59,6 +59,7 @@ def format(predict_fasta):
     inputarray = np.array(formatfasta)
     labelarray = np.array(recordlabel)
     return(inputarray, labelarray)
+
 class EmbDataset(torch.utils.data.Dataset):
     def __init__(self, ids, labels, emb_dir, maxlen=1000, dim=1024, cache=True):
         self.ids, self.labels = ids, labels
@@ -160,8 +161,6 @@ def train(args):
         train_loader = DataLoader(
             dataset=train_ds, batch_size=args.batch_size, shuffle=True,
             drop_last=True, num_workers=0)
-        best_f1 = 0
-        best_metrics = None
         best_f1 = 0
         best_metrics = None
         stale = 0
