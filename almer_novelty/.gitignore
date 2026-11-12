@@ -1,0 +1,23 @@
+﻿# Exclude all log files
+*.log
+
+# Exclude all generated images
+*.png
+
+# Exclude all model weights by default
+*.pt
+
+# PREALGPRO: Include ALL .pt files
+!/PreAlgPro/*.pt
+!/PreAlgPro/**/*.pt
+
+# PPLM + GNN: Include ONLY these three
+!/PPLM + GNN/model_gcn.pt
+!/PPLM + GNN/model_gat.pt
+!/PPLM + GNN/model_gt.pt
+
+# BiLSTM + GAT: Include ONLY these four
+!/BiLSTM + GAT/model.pt
+!/BiLSTM + GAT/model_bilstm_only.pt
+!/BiLSTM + GAT/model_concat_only.pt
+!/BiLSTM + GAT/model_gat_only.pt
