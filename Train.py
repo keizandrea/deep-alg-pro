@@ -60,15 +60,21 @@ def format(predict_fasta):
     labelarray = np.array(recordlabel)
     return(inputarray, labelarray)
 class EmbDataset(torch.utils.data.Dataset):
-    def __init__(self, ids, labels, emb_dir, maxlen=1000, dim=1024):
+    def __init__(self, ids, labels, emb_dir, maxlen=1000, dim=1024, cache=True):
         self.ids, self.labels = ids, labels
         self.emb_dir, self.maxlen, self.dim = emb_dir, maxlen, dim
+        self.cache = None
+        if cache:
+            self.cache = [np.load(os.path.join(emb_dir, i + '.npy')) for i in ids]
+            gb = sum(a.nbytes for a in self.cache) / 1e9
+            print(f'cached {len(self.cache)} embeddings, {gb:.2f} GB', flush=True)
 
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, i):
-        a = np.load(os.path.join(self.emb_dir, self.ids[i] + '.npy'))   # (L, dim) fp16
+        a = self.cache[i] if self.cache is not None else \
+            np.load(os.path.join(self.emb_dir, self.ids[i] + '.npy'))
         L = min(a.shape[0], self.maxlen)
         x = np.zeros((self.maxlen, self.dim), dtype=np.float32)
         x[self.maxlen - L:] = a[:L]        # LEFT pad — must match format()
@@ -153,7 +159,7 @@ def train(args):
         criterion = nn.BCELoss().to(device)
         train_loader = DataLoader(
             dataset=train_ds, batch_size=args.batch_size, shuffle=True,
-            drop_last=True, num_workers=2)
+            drop_last=True, num_workers=0)
         best_f1 = 0
         best_metrics = None
         best_f1 = 0
